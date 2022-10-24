@@ -1,13 +1,14 @@
-list.of.packages <- c("shiny", "gplots")
+list.of.packages <- c("shiny", "gplots","heatmaply")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)>0){
   install.packages('shiny')
   install.packages("gplots")
-  
+  install.packages("heatmaply")
 }
 
 library(shiny)
 library(gplots)
+library(heatmaply)
 # Define UI for app that draws a histogram ----
 ui <- fillPage(
   titlePanel("  Heatmap of Lactate Correlating Genes"),
@@ -33,7 +34,6 @@ ui <- fillPage(
                   width = 3),
                 
                 mainPanel(
-                  ##h1("Lactate Correlating Genes"),
                   plotOutput(outputId = "distPlot", height=700, width=600)
                   
                 )
@@ -49,8 +49,8 @@ server <- function(input, output) {
     cpmdata      = read.csv(paste0(git.dir,"LacCorCpmData.csv"), row.names = 1)
     groups       = read.csv(paste0(git.dir,"Metadata.csv"), row.names = 1)
     annot        = read.csv(paste0(git.dir,"AnnotationData.csv"),row.names=1)
-    lac.cor.data = read.csv(paste0(git.dir,"LacCorData.csv"), row.names = 1)
-    lac.cor.p    = read.csv(paste0(git.dir,"LacCorP.csv"), row.names = 1)
+    cor.data = read.csv(paste0(git.dir,"LacCorData.csv"), row.names = 1)
+    cor.p    = read.csv(paste0(git.dir,"LacCorP.csv"), row.names = 1)
       
     ##FunctionalGroups
     FG=c(rep("Adequate Function",5),rep("Intermediate Function",2),rep("Low Function",3))
@@ -76,27 +76,25 @@ server <- function(input, output) {
       cordata=cpm.0H[cpm.genes,]
       
       ##trim for genes that meet sig.cutoff
-      sig.genes=names(cor.p)[cor.p<sig.cutoff]
+      sig.genes=row.names(cor.p)[cor.p<sig.cutoff]
       cordata=cordata[intersect(row.names(cordata),sig.genes),]
       
       ##trim for genes that meet the cor.cutoff in the right direction
       if(pos.or.neg== 1){
-        cor.genes=names(cor.data)[cor.data>cor.cutoff]
+        cor.genes=row.names(cor.data)[cor.data>cor.cutoff]
         cordata=cordata[intersect(row.names(cordata),cor.genes),]
       }
       if(pos.or.neg== 2){
-        cor.genes=names(cor.data)[cor.data<(cor.cutoff*-1)]
+        cor.genes=row.names(cor.data)[cor.data<(cor.cutoff*-1)]
         cordata=cordata[intersect(row.names(cordata),cor.genes),]
       }
       if(pos.or.neg== 3){
-        cor.genes=names(cor.data)[abs(cor.data)>cor.cutoff]
+        cor.genes=row.names(cor.data)[abs(cor.data)>cor.cutoff]
         cordata=cordata[intersect(row.names(cordata),cor.genes),]
       }
       
       
-      hmdata = cordata[order(cor.data[row.names(cordata)]),]
-      ##hc = hclust(dist(hmdata), "complete")
-      ##hmdata=hmdata[hc$order,]  
+      hmdata = cordata[order(cor.data[row.names(cordata),1]),]
       hmdata=t(scale(t(hmdata)))
     
       mylmat = rbind(c(4,2),c(3,1))
@@ -110,10 +108,9 @@ server <- function(input, output) {
                 labCol = c("AF1","AF2","AF3","AF4","AF5","IF1","IF2","LF1","LF2","LF3"),
                 key = T, lmat=mylmat, lwid=mylwid, lhei=mylhei)
       
-    }
-    ##, height = 700, width = 900
-    )
+    })
+
 }
 
 
-shinyApp(ui = ui, server = server, options)
+shinyApp(ui = ui, server = server)
