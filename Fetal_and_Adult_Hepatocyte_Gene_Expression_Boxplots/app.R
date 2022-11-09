@@ -16,9 +16,6 @@ library(colourpicker)
 library(gplots)
 library(DT)
 
-#########################
-## Hepatocyt data only ##
-#########################
 
 ##countdata=read.csv("https://raw.githubusercontent.com/johncsantiago/SData/master/FetalAdultRatData/AF_Cells_raw_counts.csv", row.names = 1)
 ##countdata$ensembl=row.names(countdata)
@@ -92,75 +89,12 @@ library(DT)
 ##write.csv(annot,"/Users/johncsantiago/Documents/GitHub/SData/FetalAdultRatData/AF_Cells_annot.csv")
 ##write.csv(all.deanalysis,"/Users/johncsantiago/Documents/GitHub/SData/FetalAdultRatData/AF_Cells_All_DEanalysis.csv")
 
-#############################
-## Tissue/Colony Data Only ##
-#############################
-
-##countdata=read.csv("https://raw.githubusercontent.com/johncsantiago/SData/master/FetalAdultRatData/AF_Genewiz_all_counts.csv", row.names = 1)
-##colnames(countdata)=paste0(substring(colnames(countdata),6,nchar(colnames(countdata))),"_",substring(colnames(countdata),2,4))
-##groups=read.csv("https://raw.githubusercontent.com/johncsantiago/SData/master/FetalAdultRatData/AF_Genewiz_metadata.csv", row.names = 1)
-##row.names(groups)=paste0(substring(row.names(groups),5,nchar(row.names(groups))),"_",substring(row.names(groups),1,3))
-
-##countdata=countdata[,substring(colnames(countdata),7,9)!="246"]
-##groups=groups[substring(row.names(groups),7,9)!="246",]
-
-##x <- countdata[,row.names(groups)]
-##group <- factor(groups$adultfetal)
-##y <- DGEList(counts=x,group=group)
-##keep <- filterByExpr(y)
-##y <- y[keep,,keep.lib.sizes=FALSE] 
-##z <- calcNormFactors(y, method = "TMM") 
-##cpmdata=cpm(z)
-
-# Design matrix
-##design<-model.matrix(~0+(substring(colnames(z$counts),1,1)))
-##colnames(design) <- c(unique(substring(colnames(z$counts),1,1)))
-
-##z = estimateGLMCommonDisp(z,design, verbose=F)
-##z = estimateGLMTrendedDisp(z,design)
-##z = estimateGLMTagwiseDisp(z,design)
-##fit <- glmFit(z, design)
-
-##compare <- makeContrasts(A-F,levels=design)
-##lrt <- glmLRT(fit,contrast=as.vector(compare))
-##G_X_E<-topTags(lrt, n=nrow(cpmdata),adjust.method="BH", sort.by="PValue")
-##Adult_vs_Fetal=G_X_E$table
-
-##write.csv(cpmdata,"/Users/johncsantiago/Documents/GitHub/SData/FetalAdultRatData/AF_Genewiz_CPM.csv")
-##write.csv(groups,"/Users/johncsantiago/Documents/GitHub/SData/FetalAdultRatData/AF_Genewiz_metadata.csv")
-##write.csv(Adult_vs_Fetal,"/Users/johncsantiago/Documents/GitHub/SData/FetalAdultRatData/AF_Genewiz_DEanalysis.csv")
-
-
-
 git.dir    = "https://raw.githubusercontent.com/johncsantiago/SData/master/FetalAdultRatData/"
 cpmdata    = read.csv(paste0(git.dir,"AF_Cells_CPM.csv"),row.names=1)
 groups     = read.csv(paste0(git.dir,"AF_Cells_metadata.csv"),row.names=1)
 annot      = read.csv(paste0(git.dir,"AF_Cells_annot.csv"),row.names=1)
 deanalysis = read.csv(paste0(git.dir,"/AF_Cells_All_DEanalysis.csv"),row.names=1)
-##annot=annot[row.names(cpmdata),]
-CH.cpmdata = read.csv(paste0(git.dir,"AF_Genewiz_CPM.csv"),row.names=1)
-CH.DE      = read.csv(paste0(git.dir,"AF_Genewiz_DEanalysis.csv"),row.names=1)
-CH.groups=read.csv(paste0(git.dir,"AF_Genewiz_metadata.csv"), row.names = 1)
-colnames(CH.groups)=c("group","replicate")
-CH.groups$group[CH.groups$group=="Adult"]="Adult Host"
-CH.groups$group[CH.groups$group=="Fetal"]="Fetal Colony"
-groups=groups[,c("group","replicate")]
-all.groups=rbind(groups,CH.groups)
-
-all.cpmdata=annot[unique(c(row.names(cpmdata),row.names(CH.DE))),]
-all.cpmdata[row.names(cpmdata),3:18]=cpmdata
-all.cpmdata[row.names(CH.cpmdata),19:26]=CH.cpmdata
-all.cpmdata=all.cpmdata[,3:26]
-
-cpmdata=all.cpmdata
-groups=all.groups
-groups$group=factor(groups$group, levels=c(unique(groups$group)))
 annot=annot[row.names(cpmdata),]
-all.deanalysis=annot[unique(c(row.names(cpmdata),row.names(CH.DE))),]
-all.deanalysis[row.names(deanalysis),3:14]=deanalysis
-all.deanalysis[row.names(CH.DE),15:16]=CH.DE[,c("logFC","FDR")]
-colnames(all.deanalysis)[15:16]=c("CH_logFC","CH_FDR")
-deanalysis=all.deanalysis[,c(3:16)]
 
 
 ui <- fluidPage(
@@ -173,8 +107,7 @@ ui <- fluidPage(
                    choices = annot[,1],
                    options = list(create = TRUE,
                                   ##maxOptions = 5,
-                                  placeholder = 'select a gene name'),
-                   selected='Jun'),
+                                  placeholder = 'select a gene name')),
     p("Select Gene: Use gene symbol if available. autocompletes"),
     br(), 
     
@@ -183,9 +116,7 @@ ui <- fluidPage(
                                "Adult"            = 1, 
                                "Dual"             = 2,
                                "LAP"              = 3,
-                               "Single"           = 4,
-                               "Adult Host"       = 5,
-                               "Fetal Colony"     = 6),
+                               "Single"           = 4),
                 selected = 0),
     p("Select Line Color: choose box and point colors for selected sample condition data."),
     br(), 
@@ -218,20 +149,6 @@ ui <- fluidPage(
       colourInput("S.point.color", "Line Color",
                   "yellow",showColour = 'background')),
     
-    conditionalPanel(
-      condition = "input.colselect == 5",
-      colourInput("AH.box.color", "Line Color",
-                  "lightslategrey",showColour = 'background'),
-      colourInput("AH.point.color", "Line Color",
-                  "lightgrey",showColour = 'background')),
-    
-    conditionalPanel(
-      condition = "input.colselect == 6",
-      colourInput("FC.box.color", "Line Color",
-                  "plum",showColour = 'background'),
-      colourInput("FC.point.color", "Line Color",
-                  "plum1",showColour = 'background')),
-    
     sliderInput("size", h5("Size"), min = 0, max = 5, value = 2, step=.1),
     p("Size: select line thickness for box and point borders."),
     br(),
@@ -256,9 +173,9 @@ ui <- fluidPage(
   mainPanel(
     plotOutput(outputId = "plot", 
                click = "clicked",
-               height=600, width=900),
+               height=600, width=700),
     br(),
-    DTOutput('data', width = 750),
+    DTOutput('data', width = 550),
     tableOutput("data1"),
     p("Table of FDR values generated in the indicated comparison")
   )
@@ -285,20 +202,13 @@ server = shinyServer(function(input, output) {
       Adult  = fivenum(as.numeric(cpmdata[geneID,1:4]))[4],
       Dual   = fivenum(as.numeric(cpmdata[geneID,5:8]))[4],
       LAP    = fivenum(as.numeric(cpmdata[geneID,9:12]))[4],
-      Single = fivenum(as.numeric(cpmdata[geneID,13:16]))[4],
-      'Adult Host' = fivenum(as.numeric(cpmdata[geneID,c(17,19,21,23)]))[4],
-      'Fetal Colony' = fivenum(as.numeric(cpmdata[geneID,c(18,20,22,24)]))[4])
+      Single = fivenum(as.numeric(cpmdata[geneID,13:16]))[4])
     
     lowerhinge=data.frame(
       Adult  = fivenum(as.numeric(cpmdata[geneID,1:4]))[2],
       Dual   = fivenum(as.numeric(cpmdata[geneID,5:8]))[2],
       LAP    = fivenum(as.numeric(cpmdata[geneID,9:12]))[2],
-      Single = fivenum(as.numeric(cpmdata[geneID,13:16]))[2],
-      'Adult Host' = fivenum(as.numeric(cpmdata[geneID,c(17,19,21,23)]))[2],
-      'Fetal Colony' = fivenum(as.numeric(cpmdata[geneID,c(18,20,22,24)]))[2])
-    
-    colnames(upperhinge)=unique(groups$group)
-    colnames(lowerhinge)=unique(groups$group)
+      Single = fivenum(as.numeric(cpmdata[geneID,13:16]))[2])
     
     if(input$clicked$x <= 1.4 &
        input$clicked$x >=  .6 &
@@ -324,27 +234,20 @@ server = shinyServer(function(input, output) {
        input$clicked$y >= lowerhinge$Single){
       clicksample("Single")
     }
-    if(input$clicked$x<=5.4 &
-       input$clicked$x>=4.6 &
-       input$clicked$y <= upperhinge[,5] &
-       input$clicked$y >= lowerhinge[,5]){
-      clicksample("Adult Host")
-    }
-    if(input$clicked$x<=6.4 &
-       input$clicked$x>=5.6 &
-       input$clicked$y <= upperhinge[,6] &
-       input$clicked$y >= lowerhinge[,6]){
-      clicksample("Fetal Colony")
-    }
   })
   
   output$plot <- renderPlot({
     gene.name=row.names(annot[annot[,1]==input$gene,])
-    str(clicksample())
-    minlim=min(as.numeric(na.omit(cpmdata[gene.name,])))
-    maxlim=max(as.numeric(na.omit(cpmdata[gene.name,])))
+    temp=deanalysis[gene.name,]
+    boxdata=data.frame(logFC=signif(as.numeric(temp[c(1,3,5,7,9,11)]),3),
+                       FDR=signif(as.numeric(temp[c(2,4,6,8,10,12)]),3))
+    row.names(boxdata)=unique(substring(colnames(deanalysis),1,2))
+    sigs=boxdata[boxdata$FDR<0.05,]
     
-    par(mar=c(2,4,4,8))
+    minlim=min(as.numeric(cpmdata[gene.name,]))
+    maxlim=max(as.numeric(cpmdata[gene.name,]))
+    
+    par(mar=c(2,4,4,7))
     plot.new()
     col.pan <- colorpanel(101, "black","white")
     # Change the plot region color
@@ -356,8 +259,7 @@ server = shinyServer(function(input, output) {
     par(new = TRUE)
     boxplot(as.numeric(cpmdata[gene.name,])~(groups$group),
             col=c(input$A.box.color,input$D.box.color,
-                  input$L.box.color,input$S.box.color,
-                  input$AH.box.color,input$FC.box.color),
+                  input$L.box.color,input$S.box.color),
             border=box.outline, xlab="",lwd=input$size,ylab="CPM")
     if(input$rawdata==1){
       points(x=rep(1,4),y=as.numeric(cpmdata[gene.name,1:4]),
@@ -371,12 +273,6 @@ server = shinyServer(function(input, output) {
              cex=input$size, col = box.outline)
       points(x=rep(4,4),y=as.numeric(cpmdata[gene.name,13:16]),
              pch=21,bg=input$S.point.color,lwd=input$size *.7, 
-             cex=input$size, col = box.outline)
-      points(x=rep(5,4),y=as.numeric(cpmdata[gene.name,c(17,19,21,23)]),
-             pch=21,bg=input$AH.point.color,lwd=input$size *.7, 
-             cex=input$size, col = box.outline)
-      points(x=rep(6,4),y=as.numeric(cpmdata[gene.name,c(18,20,22,24)]),
-             pch=21,bg=input$FC.point.color,lwd=input$size *.7, 
              cex=input$size, col = box.outline)
     }
     
@@ -393,11 +289,10 @@ server = shinyServer(function(input, output) {
     ##}
     
     
-    legend(x=6.8, y=minlim+((maxlim-minlim)*.975), 
+    legend(x=4.8, y=minlim+((maxlim-minlim)*.975), 
            legend=unique(groups$group),xpd=T,
            fill=c(input$A.box.color, input$D.box.color, 
-                  input$L.box.color, input$S.box.color,
-                  input$AH.box.color, input$FC.box.color),
+                  input$L.box.color, input$S.box.color),
            bg=col.pan[(input$back*100)+1],
            text.col=col.pan[((((.6-input$back)/abs(.6-input$back))+1)*50)+1])
   }, res=96)
@@ -406,37 +301,26 @@ server = shinyServer(function(input, output) {
     
     gene.name=row.names(annot[annot[,1]==input$gene,])
     temp=deanalysis[gene.name,]
-    boxdata=data.frame(logFC=signif(as.numeric(temp[c(1,3,5,7,9,11,13)]),3),
-                       FDR=signif(as.numeric(temp[c(2,4,6,8,10,12,14)]),5))
+    boxdata=data.frame(logFC=signif(as.numeric(temp[c(1,3,5,7,9,11)]),3),
+                       FDR=signif(as.numeric(temp[c(2,4,6,8,10,12)]),5))
     row.names(boxdata)=unique(substring(colnames(deanalysis),1,2))
     ##boxdata$FDR[boxdata$FDR>.05]=1
     
-    sig.table=data.frame(Adult  = as.numeric(c("",boxdata[c("AD","AL","AS"),"FDR"],"","")), 
-                         Dual   = as.numeric(c(boxdata["AD","FDR"],"",boxdata[c("DL","DS"),"FDR"],"","")), 
-                         LAP    = as.numeric(c(boxdata[c("AL","DL"),"FDR"],"",boxdata["LS","FDR"],"","")), 
-                         Single = as.numeric(c(boxdata[c("AS","DS","LS"),"FDR"],"","","")),
-                         'Adult Host' = as.numeric(c("","","","","",boxdata[c("CH"),"FDR"])),
-                         'Fetal Colony' = as.numeric(c("","","","",boxdata[c("CH"),"FDR"],"")))
+    sig.table=data.frame(Adult  = as.numeric(c("",boxdata[c("AD","AL","AS"),"FDR"])), 
+                         Dual   = as.numeric(c(boxdata["AD","FDR"],"",boxdata[c("DL","DS"),"FDR"])), 
+                         LAP    = as.numeric(c(boxdata[c("AL","DL"),"FDR"],"",boxdata["LS","FDR"])), 
+                         Single = as.numeric(c(boxdata[c("AS","DS","LS"),"FDR"],"")))
+    row.names(sig.table)=colnames(sig.table)
     
-    row.names(sig.table)=unique(groups$group)
-    colnames(sig.table)=unique(groups$group)
     
-    use.table=data.frame(Adult  = as.numeric(c(1,boxdata[c("AD","AL","AS"),"FDR"],1,1)), 
-                         Dual   = as.numeric(c(boxdata["AD","FDR"],1,boxdata[c("DL","DS"),"FDR"],1,1)), 
-                         LAP    = as.numeric(c(boxdata[c("AL","DL"),"FDR"],1,boxdata["LS","FDR"],1,1)), 
-                         Single = as.numeric(c(boxdata[c("AS","DS","LS"),"FDR"],1,1,1)),
-                         'Adult Host' = as.numeric(c(1,1,1,1,1,boxdata[c("CH"),"FDR"])),
-                         'Fetal Colony' = as.numeric(c(1,1,1,1,boxdata[c("CH"),"FDR"],1)))
-
-                      ##   'Adult Host' = as.numeric(c(1,1,1,1,1,boxdata[c("CH"),"FDR"])),
-                      ##   'Fetal Colony' = as.numeric(c(1,1,1,1,boxdata[c("CH"),"FDR"],1)))
-    row.names(use.table)=unique(groups$group)
-    colnames(use.table)=unique(groups$group)
-    
+    use.table=data.frame(Adult  = as.numeric(c(1,boxdata[c("AD","AL","AS"),"FDR"])), 
+                         Dual   = as.numeric(c(boxdata["AD","FDR"],1,boxdata[c("DL","DS"),"FDR"])), 
+                         LAP    = as.numeric(c(boxdata[c("AL","DL"),"FDR"],1,boxdata["LS","FDR"])), 
+                         Single = as.numeric(c(boxdata[c("AS","DS","LS"),"FDR"],1)))
+    row.names(use.table)=colnames(use.table)
     use.table[use.table>.05]=-1
     use.table[use.table>-1]=0
     use.table=use.table+1
-    str(use.table)
     
     df = (sig.table)
     
@@ -449,7 +333,7 @@ server = shinyServer(function(input, output) {
       datatable(df, options = list(dom = 't', autoHideNavigation=T)) %>%
         formatStyle(colnames(df),color='grey') %>%
         formatStyle(clickID,backgroundColor = 
-                      styleRow(c(1:6)[use.table[,clickID]==1], c('yellow'))) %>% 
+                      styleRow(c(1:4)[use.table[,clickID]==1], c('yellow'))) %>% 
         formatStyle(clickID, fontWeight = 'bold', color='black') %>%
         formatStyle(colnames(df)[1], 
                     backgroundColor = styleRow(c(1),c('darkgrey'))) %>%
@@ -458,11 +342,7 @@ server = shinyServer(function(input, output) {
         formatStyle(colnames(df)[3], 
                     backgroundColor = styleRow(c(3),c('darkgrey'))) %>%
         formatStyle(colnames(df)[4], 
-                    backgroundColor = styleRow(c(4),c('darkgrey'))) %>%
-        formatStyle(colnames(df)[5], 
-                    backgroundColor = styleRow(c(5),c('darkgrey'))) %>%
-        formatStyle(colnames(df)[6], 
-                    backgroundColor = styleRow(c(6),c('darkgrey')))
+                    backgroundColor = styleRow(c(4),c('darkgrey')))
     }else{
       datatable(df, options = list(dom = 't', autoHideNavigation=T)) %>%
         formatStyle(colnames(df),color='grey') %>%
@@ -473,11 +353,7 @@ server = shinyServer(function(input, output) {
         formatStyle(colnames(df)[3], 
                     backgroundColor = styleRow(c(3),c('darkgrey'))) %>%
         formatStyle(colnames(df)[4], 
-                    backgroundColor = styleRow(c(4),c('darkgrey'))) %>%
-        formatStyle(colnames(df)[5], 
-                    backgroundColor = styleRow(c(5),c('darkgrey'))) %>%
-        formatStyle(colnames(df)[6], 
-                    backgroundColor = styleRow(c(6),c('darkgrey')))
+                    backgroundColor = styleRow(c(4),c('darkgrey')))
     }
   })
   

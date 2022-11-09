@@ -7,10 +7,19 @@ if(length(new.packages)>0){
 
 library(shiny)
 library(ggfortify)
+library(heatmaply)
+library(plotly)
 
 git.dir = "https://raw.githubusercontent.com/johncsantiago/SData/master/FlySectionsProject/"
 cpmdata = read.csv(paste0(git.dir,"cpmdata.csv"),row.names = 1)
 groups  = read.csv(paste0(git.dir,"groups.csv"),row.names = 1)
+convert=read.csv("https://raw.githubusercontent.com/DavidRandLab/Santiago-et-al-2021-BMC-Genomics/main/Data%20Files/FBgnConversionTable.csv",row.names=1)
+temp=convert[,"Symbol"]
+temp2=setdiff(row.names(cpmdata),convert[,2])
+names(temp)=convert[,2]
+names(temp2)=temp2
+convert=c(temp,temp2)
+
 clickdata=data.frame(Sample=1,
                     PC1=1,
                     PC2=1,
@@ -22,58 +31,99 @@ clickdata=data.frame(Sample=1,
                     Percent1=1,
                     Percent2=1)
 clickdata=clickdata[0,]
+hoverdata=clickdata
 resetdata=clickdata
+
+
+##mean.cpmdata=cpmdata[,1:length(unique(groups$Group))]
+##colnames(mean.cpmdata)=unique(groups$Group)
+##i=1
+##while(i<=ncol(mean.cpmdata)){
+  ##temp=cpmdata[,row.names(groups)[groups$Group==colnames(mean.cpmdata)[i]]]
+  ##mean.cpmdata[,i]=apply(temp, 1, mean)
+  ##i=i+1
+##}
+
 
 # Define UI for app that draws a histogram ----
 ui <- fluidPage(
   titlePanel("Customize PCA"),
   sidebarLayout(position="left", sidebarPanel(
+    fluidRow(
+      column(6,
     checkboxGroupInput("species",
                        h5("Species"),
                        choices = list("OreR;OreR" = "OO",
                                       "sm21;OreR" = "SO"),
-                       selected = c("OO","SO")),
-    
+                       selected = ""),
+      ),
+    column(6,
     checkboxGroupInput("sex",
                        h5("Sex"),
                        choices = list("Male"   = "Male",
                                       "Female" = "Female"),
-                       selected = c("Male","Female")),
+                       selected = ""),
+    ),),
     
+    fluidRow(
+      column(6,
     checkboxGroupInput("treatment",
                        h5("Treatment"),
                        choices = list("Control" = "Control",
                                       "Rapa"    = "Rapa"),
-                       selected = c("Control","Rapa")),
-    
+                       selected = ""),
+      ),
+    column(6,
     checkboxGroupInput("tissue",
                        h5("Tissue"),
                        choices = list("Head"    = "Head",
                                       "Thorax"  = "Thorax",
                                       "Abdomen" = "Abdomen"),
-                       selected = c("Head","Thorax","Abdomen")),
+                       selected = ""),
+    ),),
     
+    fluidRow(
+      column(6,
     selectInput("shape", h5("Shape Variable"),
                 choices = list("Species"   = "Species",
                                "Sex"       = "Sex",
                                "Treatment" = "Treatment",
                                "Tissue"    = "Tissue")),
     
+      ),
+    column(6,
     selectInput("color", h5("Color Variable"),
                 choices = list("Species"   = "Species",
                                "Sex"       = "Sex",
                                "Treatment" = "Treatment",
-                               "Tissue"    = "Tissue")),
+                               "Tissue"    = "Tissue"),
+                selected="Tissue"),
+    ),),
     
-    sliderInput("size", h5("Size"), min = 0, max = 5, value = 2, step=.1),
+    fluidRow(
+      column(6,
+    sliderInput("size", h5("Size"), min = 0, max = 10, value = 3, step=.5),
+      ),
+    column(6,
+           sliderInput("tophits", h5("Number of PC Genes"), min = 10, max = 50, value = 25, step=5)
+    ),),
     actionButton("clear","Clear Selected", class = "btn-lg btn-success"),
                 
     width = 3),
+    
     mainPanel(
       plotOutput(outputId = "distPlot",
                  click = "clicked",
-                 height=600, width=600),
-      tableOutput("data"))
+                 hover = "hoverpoint"##,
+                 ##height=600, width=600)
+                 ),
+      fluidRow(
+        column(6,
+      plotlyOutput(outputId = "topPC1hits", height = 550),
+        ),
+      column(6,
+      plotlyOutput(outputId = "topPC2hits", height = 550))
+      ),),
   )
 )
 
@@ -81,7 +131,7 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram ----
 server <- function(input, output) {
   
-  newdata=reactive({
+  temp.groups=reactive({
     use.groups =  groups
     
     if(length(input$species) == 1){
@@ -104,9 +154,14 @@ server <- function(input, output) {
       use.groups = use.groups[use.groups$Tissue == input$tissue[1]|
                                 use.groups$Tissue == input$tissue[2],]
     }
+
+    return(use.groups)
+  })
+  
+  newdata=reactive({
+    use.groups=temp.groups()
     use.data   = cpmdata[,row.names(use.groups)]
     use.data   = use.data[apply(use.data,1,sum)>0,]
-    
     pca <- prcomp(t(use.data), scale.=TRUE) 
     gr <- as.data.frame(use.groups)
     PC1=scale(pca$x[,1])
@@ -136,6 +191,13 @@ server <- function(input, output) {
                             duplicated(clickdata, fromLast=TRUE)),]
     return(clickdata)
   })
+  
+  details=reactive({
+    temp=newdata()
+    ##hoverdata<<-resetdata
+    hoverdata<<-rbind(hoverdata,nearPoints(temp,input$hoverpoint, xvar="PC1", yvar="PC2", maxpoints=1))
+    return(hoverdata)
+  })
 
   observeEvent(input$clear,{
     clickdata<<-resetdata
@@ -147,18 +209,115 @@ server <- function(input, output) {
 
 output$distPlot <- renderPlot({
   pca.data=newdata()
+  labeltxt=details()
       ggplot(pca.data, aes(x = PC1, y = PC2)) +
         geom_point(aes_string(shape = input$shape, 
                        colour       = input$color),
                    size  = input$size,
-                   alpha = 1) +
+                   alpha = .75) +
         labs(x=paste0("PC1 (",pca.data$Percent1[1],"%)"), 
              y=paste0("PC2 (",pca.data$Percent2[1],"%)")) +
         geom_point(data=highlight(), colour = "black", size = 6) +
-        geom_point(data=highlight(), colour = "yellow", size = 5)
-      
+        geom_point(data=highlight(), colour = "yellow", size = 5) +
+        annotate("label",
+                 x=hoverdata[nrow(hoverdata),"PC1"]+.25,
+                 y=hoverdata[nrow(hoverdata),"PC2"]+.1,
+                 label=hoverdata[nrow(hoverdata),"Sample"],
+                 colour="black", fill = "yellow") ##, alpha=.7)
     }, res=96)
-    
+ 
+
+
+output$topPC1hits <- renderPlotly({
+  use.groups = temp.groups()
+  use.data   = cpmdata[,row.names(use.groups)]
+  use.data   = use.data[apply(use.data,1,sum)>0,]
+  pca.data <- prcomp(t(use.data), scale.=TRUE) 
+  PCcontribute=pca.data$rotation[,1]
+  PCcontribute=PCcontribute[order(PCcontribute,decreasing=T)]
+  
+  ##The column sum of squares of the loadings (pca$rotation) are the variances of PCs.
+  #the squared factor loading is the percent of variance in that variable explained by the factor
+  percents=(PCcontribute*PCcontribute)
+
+  ##puts the genes in decreasing order
+  percents=percents[order(percents,decreasing=T)]
+  pca.genes=PCcontribute[names(percents)[1:input$tophits]]
+
+  pca.genes=names(pca.genes[order(pca.genes)])
+  PCorder=pca.data$x[,1]
+  PCorder=PCorder[order(PCorder)]
+  
+  top.pca=cpmdata[pca.genes,names(PCorder)]
+  row.names(top.pca)=
+    convert[row.names(top.pca)]
+  color.groups=groups[names(PCorder),]
+
+  
+  col.text=1
+  if(ncol(top.pca)>18){
+    col.text=1-((ncol(top.pca)-18)*.011)
+  }
+  
+  heatmaply(top.pca,trace="none",col=RdYlBu(100)[100:1], scale="row",
+            dendrogram = "none",Rowv=F,Colv=F,
+            cexRow = .75, na.color="grey",
+            labRow = row.names(top.pca),
+            cexCol = col.text,
+            key = T,
+            column_text_angle = 90,
+            col_side_colors=color.groups[,1:4],
+            col_side_palette=Spectral,
+            main="PC1")
+  
+})
+
+output$topPC2hits <- renderPlotly({
+  use.groups = temp.groups()
+  use.data   = cpmdata[,row.names(use.groups)]
+  use.data   = use.data[apply(use.data,1,sum)>0,]
+  
+  
+  pca.data <- prcomp(t(use.data), scale.=TRUE) 
+  PCcontribute=pca.data$rotation[,2]
+  
+  PCcontribute=PCcontribute[order(PCcontribute,decreasing=T)]
+  
+  ##The column sum of squares of the loadings (pca$rotation) are the variances of PCs.
+  #the squared factor loading is the percent of variance in that variable explained by the factor
+  percents=(PCcontribute*PCcontribute)
+  
+  ##puts the genes in decreasing order
+  percents=percents[order(percents,decreasing=T)]
+  pca.genes=PCcontribute[names(percents)[1:input$tophits]]
+  
+  pca.genes=names(pca.genes[order(pca.genes)])
+  PCorder=pca.data$x[,2]
+  PCorder=PCorder[order(PCorder)]
+  
+  top.pca=cpmdata[pca.genes,names(PCorder)]
+  row.names(top.pca)=
+    convert[row.names(top.pca)]
+  color.groups=groups[names(PCorder),]
+
+  col.text=1
+  if(ncol(top.pca)>18){
+    col.text=1-((ncol(top.pca)-18)*.011)
+  }
+  
+  heatmaply(top.pca,trace="none",col=RdYlBu(100)[100:1], scale="row",
+            dendrogram = "none",Rowv=F,Colv=F,
+            cexRow = .75, na.color="grey",
+            cexCol = col.text,
+            labRow = row.names(top.pca),
+            key = T,
+            column_text_angle = 90,
+            col_side_colors=color.groups[,1:4],
+            col_side_palette=Spectral,
+            main="PC2")
+  
+})
+
 }
 
 

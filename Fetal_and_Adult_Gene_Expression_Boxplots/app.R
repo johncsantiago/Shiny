@@ -162,6 +162,8 @@ all.deanalysis[row.names(CH.DE),15:16]=CH.DE[,c("logFC","FDR")]
 colnames(all.deanalysis)[15:16]=c("CH_logFC","CH_FDR")
 deanalysis=all.deanalysis[,c(3:16)]
 
+gene.choices=annot[,1]
+##annot[row.names(deanalysis)[order(deanalysis[,input$choice.order])],1]
 
 ui <- fluidPage(
   titlePanel("Rat Adult-Fetal Hepatocyte Data: Plot Specific Gene Expression Data"),
@@ -169,14 +171,20 @@ ui <- fluidPage(
     h5("Description: "),
     p("Generates a boxplot for any specific gene in the Rat Adult-Fetal Hepatocyte dataset. Options allow figure customization. Click inside box to highlight significant FDR values in the corresponding deanalysis table sample column"),
     br(),
-    selectizeInput("gene", label = "Select Gene", 
-                   choices = annot[,1],
-                   options = list(create = TRUE,
-                                  ##maxOptions = 5,
-                                  placeholder = 'select a gene name'),
-                   selected='Jun'),
+    uiOutput("geneControls"),
     p("Select Gene: Use gene symbol if available. autocompletes"),
     br(), 
+    selectInput("choice.order", h5("Choose Signifigance Order"),
+                choices = list("Host~Colony"   = "CH_FDR",
+                               "Adult~Dual"    = "AD_FDR",
+                               "Adult~LAP"     = "AL_FDR",
+                               "Adult~Single"  = "AS_FDR",
+                               "Dual~LAP"      = "DL_FDR",
+                               "Dual~Single"   = "DS_FDR",
+                               "LAP~Single"    = "LS_FDR"),
+                selected="CH_FDR"),
+    p("Choose Signifigance Order: Organize the 'Select Gene' drop down menu order by FDR observed for a comparison between specific conditions"),
+    br(),
     
     selectInput("colselect", h5("Select Fill Color"), 
                 choices = list("Choose Condition" = 0,
@@ -277,6 +285,16 @@ server = shinyServer(function(input, output) {
     ydata(input$clicked$y)
   })
   
+  output$geneControls =  renderUI({
+    gene.choices<<-annot[row.names(deanalysis)[order(deanalysis[,input$choice.order])],1]
+    selectizeInput("gene", label = "Select Gene", 
+                   choices = gene.choices,
+                   options = list(create = TRUE,
+                                  ##maxOptions = 5,
+                                  placeholder = 'select a gene name'),
+                   selected=gene.choices[1])
+  })
+  
   clicksample=reactiveVal()
   observeEvent(input$clicked,{
     clicksample(NA)
@@ -299,7 +317,8 @@ server = shinyServer(function(input, output) {
     
     colnames(upperhinge)=unique(groups$group)
     colnames(lowerhinge)=unique(groups$group)
-    
+
+    if(!(is.na(upperhinge[,1]))){
     if(input$clicked$x <= 1.4 &
        input$clicked$x >=  .6 &
        input$clicked$y <= upperhinge$Adult &
@@ -324,6 +343,8 @@ server = shinyServer(function(input, output) {
        input$clicked$y >= lowerhinge$Single){
       clicksample("Single")
     }
+    }
+    if(!(is.na(upperhinge$'Adult Host'))){
     if(input$clicked$x<=5.4 &
        input$clicked$x>=4.6 &
        input$clicked$y <= upperhinge[,5] &
@@ -336,11 +357,11 @@ server = shinyServer(function(input, output) {
        input$clicked$y >= lowerhinge[,6]){
       clicksample("Fetal Colony")
     }
+    }
   })
   
   output$plot <- renderPlot({
     gene.name=row.names(annot[annot[,1]==input$gene,])
-    str(clicksample())
     minlim=min(as.numeric(na.omit(cpmdata[gene.name,])))
     maxlim=max(as.numeric(na.omit(cpmdata[gene.name,])))
     
@@ -360,6 +381,7 @@ server = shinyServer(function(input, output) {
                   input$AH.box.color,input$FC.box.color),
             border=box.outline, xlab="",lwd=input$size,ylab="CPM")
     if(input$rawdata==1){
+      
       points(x=rep(1,4),y=as.numeric(cpmdata[gene.name,1:4]),
              pch=21,bg=input$A.point.color,lwd=input$size *.7, 
              cex=input$size, col = box.outline)
@@ -428,23 +450,19 @@ server = shinyServer(function(input, output) {
                          'Adult Host' = as.numeric(c(1,1,1,1,1,boxdata[c("CH"),"FDR"])),
                          'Fetal Colony' = as.numeric(c(1,1,1,1,boxdata[c("CH"),"FDR"],1)))
 
-                      ##   'Adult Host' = as.numeric(c(1,1,1,1,1,boxdata[c("CH"),"FDR"])),
-                      ##   'Fetal Colony' = as.numeric(c(1,1,1,1,boxdata[c("CH"),"FDR"],1)))
     row.names(use.table)=unique(groups$group)
     colnames(use.table)=unique(groups$group)
     
     use.table[use.table>.05]=-1
     use.table[use.table>-1]=0
     use.table=use.table+1
-    str(use.table)
     
     df = (sig.table)
     
-    ##str(xdata
+
     xpos=xdata()
     ypos=ydata()
     clickID=clicksample()
-    str(as.numeric(na.omit(df$clickID<.05)))
     if(length(intersect(clickID,groups$group)==1)){
       datatable(df, options = list(dom = 't', autoHideNavigation=T)) %>%
         formatStyle(colnames(df),color='grey') %>%
@@ -462,7 +480,10 @@ server = shinyServer(function(input, output) {
         formatStyle(colnames(df)[5], 
                     backgroundColor = styleRow(c(5),c('darkgrey'))) %>%
         formatStyle(colnames(df)[6], 
-                    backgroundColor = styleRow(c(6),c('darkgrey')))
+                    backgroundColor = styleRow(c(6),c('darkgrey'))) %>%
+        formatStyle(colnames(df)[1:4], border = styleRow(c(1:4),'2px solid black')) %>% 
+        formatStyle(colnames(df)[5:6], border = styleRow(c(5:6),'2px solid black')) %>%
+        formatStyle(clickID, border = styleRow(c(1:6)[use.table[,clickID]==1],'3px solid red'))
     }else{
       datatable(df, options = list(dom = 't', autoHideNavigation=T)) %>%
         formatStyle(colnames(df),color='grey') %>%
@@ -477,7 +498,9 @@ server = shinyServer(function(input, output) {
         formatStyle(colnames(df)[5], 
                     backgroundColor = styleRow(c(5),c('darkgrey'))) %>%
         formatStyle(colnames(df)[6], 
-                    backgroundColor = styleRow(c(6),c('darkgrey')))
+                    backgroundColor = styleRow(c(6),c('darkgrey'))) %>%
+        formatStyle(colnames(df)[1:4], border = styleRow(c(1:4),'2px solid black')) %>% 
+        formatStyle(colnames(df)[5:6], border = styleRow(c(5:6),'2px solid black'))
     }
   })
   

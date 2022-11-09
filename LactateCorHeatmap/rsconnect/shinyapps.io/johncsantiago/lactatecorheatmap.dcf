@@ -5,7 +5,7 @@ account: johncsantiago
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 7392002
-bundleId: 6432023
+bundleId: 6439731
 url: https://johncsantiago.shinyapps.io/lactatecorheatmap/
-when: 1666540154.988
-lastSyncTime: 1666540154.98801
+when: 1666715014.23416
+lastSyncTime: 1666715014.23417
