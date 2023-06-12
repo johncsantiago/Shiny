@@ -5,7 +5,7 @@ account: johncsantiago
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 7453261
-bundleId: 6451533
+bundleId: 6537104
 url: https://johncsantiago.shinyapps.io/human_liver_specific_gene_plots/
-when: 1666973674.17443
-lastSyncTime: 1666973674.17444
+when: 1669009064.67252
+lastSyncTime: 1669009064.67253
