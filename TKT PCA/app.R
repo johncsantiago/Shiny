@@ -52,6 +52,15 @@ ui <- fluidPage(
                                       "Deficient"    = "DF",
                                       "Over Expression" = "OE"),
                        selected = ""),
+      ),
+    
+    column(6,
+           radioButtons("pc",
+                              h5("PC"),
+                              choices = list("PC1/2" = 1,
+                                             "PC1/3" = 2,
+                                             "PC2/3" = 3),
+                              selected = 1),
     ),),
     
     
@@ -159,17 +168,22 @@ server <- function(input, output) {
     PC1=scale(pca$x[,1])
     PC2=scale(pca$x[,2])
     eigs <- pca$sdev^2
-    ve=signif(((eigs / sum(eigs))*100)[1:2],4)
+    ve=signif(((eigs / sum(eigs))*100)[1:3],4)
+    pcs=matrix(c(1,2,1,3,2,3),ncol =3)
+    pcs=pcs[,as.numeric(input$pc)]
     
+      
     pca.data=data.frame(Sample=row.names(gr),
-                        PC1=scale(pca$x[,1]),
-                        PC2=scale(pca$x[,2]),
+                        ##PC1=scale(pca$x[,1]),
+                        ##PC2=scale(pca$x[,2]),
+                        PC1=scale(pca$x[,pcs[1]]),
+                        PC2=scale(pca$x[,pcs[2]]),
                         sdev=pca$sdev,
                         Genotype=gr$Genotype, 
                         Sex=gr$Sex, 
                         TKT=gr$TKT,
-                        Percent1=ve[1],
-                        Percent2=ve[2],
+                        Percent1=ve[pcs[1]],
+                        Percent2=ve[pcs[2]],
                         Group=gr$Group)
     
     return(pca.data)
@@ -179,6 +193,11 @@ output$distPlot <- renderPlotly({
   pca.data=newdata()
   pca.shape = factor(pca.data[,input$shape])
   pca.color = factor(pca.data[,input$color])
+  percent1 = pca.data$Percent1[1]
+  percent2 = pca.data$Percent2[1]
+  pcs=matrix(c(1,2,1,3,2,3),ncol =3)
+  pcs=pcs[,as.numeric(input$pc)]
+  
   fig  = plot_ly(data = pca.data, 
                  x = ~PC1, 
                  y = ~PC2,
@@ -194,8 +213,8 @@ output$distPlot <- renderPlotly({
                                line = list(color = "black", width = 1.5)),
                  hoverinfo = "text",
                  hovertext = paste("Sample:", pca.data$Sample)) %>%
-    layout(xaxis = list(title = paste0("PC1 (", ve[1], "%)")),
-           yaxis = list(title = paste0("PC2 (", ve[2], "%)")))
+    layout(xaxis = list(title = paste0("PC", pcs[1], "(", percent1, "%)")),
+           yaxis = list(title = paste0("PC", pcs[2], "(", percent2, "%)")))
   
   fig
   
@@ -210,7 +229,9 @@ output$topPC1hits <- renderPlotly({
   use.data   = cpmdata[,row.names(use.groups)]
   use.data   = use.data[apply(use.data,1,sum)>0,]
   pca.data <- prcomp(t(use.data), scale.=TRUE) 
-  PCcontribute=pca.data$rotation[,1]
+  pcs=matrix(c(1,2,1,3,2,3),ncol =3)
+  pcs=pcs[,as.numeric(input$pc)]
+  PCcontribute=pca.data$rotation[,pcs[1]]
   PCcontribute=PCcontribute[order(PCcontribute,decreasing=T)]
   
   ##The column sum of squares of the loadings (pca$rotation) are the variances of PCs.
@@ -222,7 +243,7 @@ output$topPC1hits <- renderPlotly({
   pca.genes=PCcontribute[names(percents)[1:input$tophits]]
 
   pca.genes=names(pca.genes[order(pca.genes)])
-  PCorder=pca.data$x[,1]
+  PCorder=pca.data$x[,pcs[1]]
   PCorder=PCorder[order(PCorder)]
   
   top.pca=cpmdata[pca.genes,names(PCorder)]
@@ -252,7 +273,7 @@ output$topPC1hits <- renderPlotly({
             column_text_angle = 90,
             col_side_colors=color.groups[,1:4],
             col_side_palette=Spectral,
-            main="PC1",
+            main=paste0("PC",pcs[1]),
             custom_hovertext = cpm.text)
 })
 
@@ -260,10 +281,11 @@ output$topPC2hits <- renderPlotly({
   use.groups = temp.groups()
   use.data   = cpmdata[,row.names(use.groups)]
   use.data   = use.data[apply(use.data,1,sum)>0,]
-  
+  pcs=matrix(c(1,2,1,3,2,3),ncol =3)
+  pcs=pcs[,as.numeric(input$pc)]
   
   pca.data <- prcomp(t(use.data), scale.=TRUE) 
-  PCcontribute=pca.data$rotation[,2]
+  PCcontribute=pca.data$rotation[,pcs[2]]
   
   PCcontribute=PCcontribute[order(PCcontribute,decreasing=T)]
   
@@ -276,7 +298,7 @@ output$topPC2hits <- renderPlotly({
   pca.genes=PCcontribute[names(percents)[1:input$tophits]]
   
   pca.genes=names(pca.genes[order(pca.genes)])
-  PCorder=pca.data$x[,2]
+  PCorder=pca.data$x[,pcs[2]]
   PCorder=PCorder[order(PCorder)]
   
   top.pca=cpmdata[pca.genes,names(PCorder)]
@@ -305,7 +327,7 @@ output$topPC2hits <- renderPlotly({
             column_text_angle = 90,
             col_side_colors=color.groups[,1:4],
             col_side_palette=Spectral,
-            main="PC2",
+            main=paste0("PC",pcs[2]),
             custom_hovertext = cpm.text)
   
 })
